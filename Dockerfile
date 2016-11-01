@@ -31,7 +31,8 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libxslt-dev \
     nginx \
-    supervisor
+    supervisor \
+    gunicorn
 
 # create the taiga user and working directory
 RUN useradd -ms /bin/bash taiga
@@ -65,13 +66,13 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN mkdir -p /home/taiga/taiga-back/static && \
     mkdir -p /home/taiga/taiga-back/media && \
     chown taiga:taiga /home/taiga/taiga-back/static && \
-    chown taiga:taiga /home/taiga/taiga-back/media && \
-    chmod 777 /home/taiga/taiga-back/static && \
-    chmod 777 /home/taiga/taiga-back/media
+    chown taiga:taiga /home/taiga/taiga-back/media
 
 # volumes
 VOLUME ["/home/taiga/taiga-back/static", "/home/taiga/taiga-back/media"]
 
 # configure start
 COPY configure-script /configure-script
+
+USER root
 CMD supervisord -c /etc/supervisor/conf.d/supervisord.conf
