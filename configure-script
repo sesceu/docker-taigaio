@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# The following variables are expected to be defined
+#
+# $POSTGRES_HOST - hostname of the postgres server
+# $POSTGRES_ROOT_USER - postgres db root user (for creating the TAIGA_DB_USER)
+# $POSTGRES_ROOT_PASSWORD - postgres db root password (for creating the TAIGA_DB_USER   )
+# $TAIGA_DB_USER - postgres db user
+# $TAIGA_DB - postgres db to use for taiga
+# $TAIGA_PROTOCOL - http or https (how taiga is being served to the end users)
+# $TAIGA_DOMAIN - the domain under which taiga will be served (e.g. example.com)
+# $TAIGA_SMTP_HOST - the smtp host used for sending mails
+# $TAIGA_SMTP_PORT - the TAIGA_SMTP_HOST's port
+# $TAIGA_SMTP_TLS - set to True or False
+# $TAIGA_SMTP_USER - the smtp user to authenticate against TAIGA_SMTP_HOST
+# $TAIGA_SMTP_PASSWORD - the TAIGA_SMTP_USER's password
+# $TAIGA_SMTP_FROM - the sender's address to send mails from
+
+# create postgresql user if not exists
+PGPASSWORD="$POSTGRES_ROOT_PASSWORD" psql -h $POSTGRES_HOST -U $POSTGRES_ROOT_USER -tAc "SELECT 1 FROM pg_roles WHERE rolname='$TAIGA_DB_USER'" | grep -q 1 || PGPASSWORD="$POSTGRES_ROOT_PASSWORD" psql -h $POSTGRES_HOST -U $POSTGRES_ROOT_USER <<- EOSQL
+    CREATE USER $TAIGA_DB_USER;
+    CREATE DATABASE $TAIGA_DB;
+    GRANT ALL PRIVILEGES ON DATABASE $TAIGA_DB TO $TAIGA_DB_USER;
+EOSQL
+
+# update the taiga-back's configuration
+sed -i "s/##TAIGA_PROTOCOL##/$TAIGA_PROTOCOL/g" /home/taiga/taiga-back/settings/local.py
+sed -i "s/##TAIGA_DOMAIN##/$TAIGA_DOMAIN/g" /home/taiga/taiga-back/settings/local.py
+sed -i "s/##TAIGA_SMTP_FROM##/$TAIGA_SMTP_FROM/g" /home/taiga/taiga-back/settings/local.py
+sed -i "s/##TAIGA_SMTP_HOST##/$TAIGA_SMTP_HOST/g" /home/taiga/taiga-back/settings/local.py
+sed -i "s/##TAIGA_SMTP_PORT##/$TAIGA_SMTP_PORT/g" /home/taiga/taiga-back/settings/local.py
+sed -i "s/##TAIGA_SMTP_TLS##/$TAIGA_SMTP_TLS/g" /home/taiga/taiga-back/settings/local.py
+sed -i "s/##TAIGA_SMTP_USER##/$TAIGA_SMTP_USER/g" /home/taiga/taiga-back/settings/local.py
+sed -i "s/##TAIGA_SMTP_PASSWORD##/$TAIGA_SMTP_PASSWORD/g" /home/taiga/taiga-back/settings/local.py
+
+# update the taiga-front's configuration
+sed -i "s/localhost:8000/$TAIGA_DOMAIN/g" /home/taiga/taiga-front/dist/conf.json
+
+if [[ ! -d /home/taiga/taiga-back/media/user ]]; then
+    mkdir -p /home/taiga/taiga-back/media/user
+    cd /home/taiga/taiga-back
+
+    python3 manage.py migrate --noinput
+    python3 manage.py loaddata initial_project_templates
+    #python3 manage.py loaddata initial_user
+    #python3 manage.py loaddata initial_role
+    #python3 manage.py sample_data
+fi
