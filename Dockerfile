@@ -61,6 +61,14 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # configure supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# create the volume directories (so that they get the correct permissions)
+RUN mkdir -p /home/taiga/taiga-back/static && \
+    mkdir -p /home/taiga/taiga-back/media && \
+    chown taiga:taiga /home/taiga/taiga-back/static && \
+    chown taiga:taiga /home/taiga/taiga-back/media && \
+    chmod 777 /home/taiga/taiga-back/static && \
+    chmod 777 /home/taiga/taiga-back/media
+
 # volumes
 VOLUME ["/home/taiga/taiga-back/static", "/home/taiga/taiga-back/media"]
 
